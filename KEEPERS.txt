@@ -1,0 +1,10 @@
+Object (7/7): A capacity ledger is a store. With B=6 and U_stream=5, a snapshot-restored self/snapshot ledger attests charged=0 while the first lease is still live and wrongly admits a second over-cap call (wrong_admits=1). The same scenario under witness or self/monotone refuses the second admit (wrong_admits=0) because the append-only admission log / monotone live-set did not restore with the ledger (charged_witness + U > B; first lid still live). A cross/lagging replica restored with the same snapshot agrees with self/snapshot: same wrong admit, zero gain. After a witnessed release, the next legal admit proceeds; publish still requires postcondition G. Refuse on a backward admission-head step (7→3); hold on pure lag; admit when caught up.
+
+Keepers in plain words:
+1. Self-attestation follows the snapshot. Restoring an empty ledger while a lease is still live makes "current charged" look empty; the second over-cap call is admitted. That is the inject / failure mode for capacity.
+2. An admission witness that does not restore closes it. Append-only admit/release (or a monotone live-set kept outside the snapshot) still sees the first lease, refuses the second, and scores wrong_admits=0.
+3. A lagging twin that shares the restore adds nothing. Same wrong admit as self/snapshot.
+4. Release is witnessed too. After the witness records release of the first lease, the next legal admit succeeds; failing G still does not publish.
+5. Refuse is not hold. A head that moved backwards is refuse-now; a head that never moved and only lags is hold-and-retry; caught up is admit.
+
+Still a hunch: where the independent admission witness lives in a real runtime (process-local append-only log the restore path cannot touch, a second replica in another failure domain, signed lease receipts); its cost on every admit; whether a witness that can itself lag (not revert) only delays admits or also causes wrong refusals; and whether the same contrast holds for SkillEffect's multi-plugin peak table, not just one CSV reduction.
